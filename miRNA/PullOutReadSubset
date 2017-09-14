@@ -1,0 +1,46 @@
+#!/usr/bin/perl -w
+use strict;
+
+
+# NEED INPUT INFO
+#################
+die "usage: $0 <Solexa-fastq-File> <Type:PE-SR> <Fraction-Reads-To-Keep:0-1>\n" unless $#ARGV == 2;
+my $SolexaFile = shift;
+my $Type = shift;
+my $NumToKeep = shift;
+
+
+# EXTRACT READ SUBSETS
+######################
+my $KeepReads = 0;
+
+my $LineCountMax;
+if ($Type eq "PE") {
+    $LineCountMax = 8;
+}
+elsif ($Type eq "SR") {
+    $LineCountMax = 4;
+}
+else {
+    die "Type: $Type must be PE or SR.\n";
+}
+
+my $LineCount = $LineCountMax;
+
+
+open (FILE, "$SolexaFile") or die "can't open $SolexaFile\n";
+while (<FILE>) {
+
+    if ($LineCount == $LineCountMax) {
+	$LineCount = 0;
+	$KeepReads = 0;
+	$KeepReads = 1 if rand() < $NumToKeep;
+    }
+
+    if ($KeepReads) {
+	print $_;
+    }
+
+    $LineCount++;
+}
+close FILE;
