@@ -1,0 +1,127 @@
+#!/usr/bin/perl
+
+use Getopt::Std;
+
+my %opts;
+
+my $min_length = 0;
+
+getopts('1:2:m:',\%opts);
+if ($opts{'1'}) { $read1_file = $opts{'1'}; }
+if ($opts{'2'}) { $read2_file = $opts{'2'}; }
+if ($opts{'m'}) { $min_length = $opts{'m'}; }
+
+
+#Read through files and gather reads.  If a read is in both files read{read} == 2.
+#
+my %reads;
+open(READ1,$read1_file) or warn "Can't open file $read1_file: $|\n";
+my $read;
+while(<READ1>) {
+  if (!(($.-1) % 4)) {
+    ($read) = /:(\d+:\d+:\d+) /;
+    $reads1{$read}++;
+    if ($reads1{$read} > 1) { print "Too many: $reads1{$read} $read  $_\n"; }
+  }
+  elsif (!(($.-2) % 4)) {
+    chomp;
+    if ($min_length && length($_) < $min_length) { $reads1{$read}--;  }
+  }
+}
+close READ1 or warn "Can't close file $read1_file: $|\n";
+
+open(READ2,$read2_file) or warn "Can't open file $read2_file: $|\n";
+while(<READ2>) {
+  if (!(($.-1) % 4)) {
+    ($read) = /:(\d+:\d+:\d+) /;
+    $reads2{$read}++;
+    if ($reads2{$read} > 2) { print "Too many 2: $reads2{$read} $read  $_\n"; }
+  }
+  elsif (!(($.-2) % 4)) {
+    chomp;
+    if ($min_length && length($_) < $min_length) { $reads2{$read}--; }
+  }
+}
+close READ2 or warn "Can't close file $read2_file: $|\n";
+
+print "Initial reads done.\n";
+
+
+
+my ($skip1,$skip2);
+my ($read1,$read2);
+
+my ($read,$fasta,$seq);
+
+#Read through files and filter to keep only reads in both files.
+#
+my $read1_out = $read1_file.'.out';
+open(OUT1,'>'.$read1_out) or warn "Can't open file $read1_out: $|\n";
+my $read2_out = $read2_file.'.out';
+open(OUT2,'>'.$read2_out) or warn "Can't open file $read2_out: $|\n";
+
+
+open(READ1,$read1_file) or warn "Can't open file $read1_file: $|\n";
+while(<READ1>) {
+  chomp;
+  if (!(($.-1) % 4)) {
+    ($read) = /:(\d+:\d+:\d+) /;
+    $fasta = $_;
+  }
+  elsif (!(($.-2) % 4)) { $seq = $_; }
+  elsif (!(($.-3) % 4)) { next; }
+  else {
+    if (defined $reads1{$read} && defined $reads2{$read} && !defined $found1{$read}) {
+      print OUT1 "$fasta\n$seq\n+\n$_\n";
+      $found1{$read}++;
+      $read1++;
+      $read1_bp += length($seq);
+    }else { $skip1++; }
+  }
+}  
+close READ1 or warn "Can't close file $read1_file: $|\n";
+
+
+open(READ2,$read2_file) or warn "Can't open file $read2_file: $|\n";
+while(<READ2>) {
+  chomp;
+  if (!(($.-1) % 4)) {
+    ($read) = /:(\d+:\d+:\d+) /;
+    $fasta = $_;
+  }
+  elsif (!(($.-2) % 4)) { $seq = $_; }
+  elsif (!(($.-3) % 4)) { next; }
+  else {
+    if (defined $reads1{$read} && defined $reads2{$read} && !defined $found2{$read}) {
+      print OUT2 "$fasta\n$seq\n+\n$_\n";
+      $read2++;
+      $read2_bp += length($seq);
+      $found2{$read}++;
+    }else { $skip2++; }
+  }
+}
+close READ2 or warn "Can't close file $read2_file: $|\n";
+
+close OUT1 or warn "Can't close file $read1_out: $|\n";
+close OUT2 or warn "Can't close file $read2_out: $|\n";
+
+
+#Report results.
+#
+my $bp = $read1_bp + $read2_bp;
+print "Retained $read1 read 1, $read2 read2 entries.  $bp total bp, $read1_bp read 1 bp, $read2_bp read 2 bp\n";
+print "Skipped $skip1 read1 entries, $skip2 read2 entries.\n";
+
+
+
+
+
+
+
+
+
+
+
+
+
+

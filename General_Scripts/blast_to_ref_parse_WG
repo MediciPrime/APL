@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+use strict;
+use Bio::SeqIO;
+use Bio::SearchIO;
+use Bio::Tools::Run::StandAloneBlast;
+
+my $blast_file = shift @ARGV;
+
+
+ my $report = Bio::SearchIO->new(-format => 'blast', -file => $blast_file);
+ while (my $result = $report->next_result) {
+    #my ($id,$type) = split(/_/,$result->query_name);
+    my $id = $result->query_name;
+    my $best_ident = 0;
+    while (my $hit = $result->next_hit) {
+ 	while (my $hsp = $hit->next_hsp) {
+            if ($hsp->frac_identical < $best_ident) { next; }
+            $best_ident = $hsp->frac_identical;
+
+
+	    my $homol = $hsp->homology_string;
+	    my $q_seq = $hsp->query_string;
+	    my $s_seq = $hsp->hit_string;
+
+	    #print "H:$homol\n";
+            my $change;
+            while ($homol =~ / /g) {
+              my $pos = length($`);
+              my $q_position = $pos + $hsp->start('query');
+			  my $s_position = $pos + $hsp->start('subject');
+              $change .= substr($s_seq,$pos,1).'>'.substr($q_seq,$pos,1)." at position $s_position; ";
+            }
+            $change =~ s/; $//;
+
+            my $note;
+            if ($hsp->start('query') > 1 || $hsp->end('query') < $result->query_length) { $note = "Match doesn't include ends"; }
+
+            printf("$id\t%d\t%s\t%2.2f\t%s\t%s\t$note\n",$result->query_length,$hit->name,$hsp->frac_identical*100,$hsp->evalue,$change);
+ 	}
+    }
+ }
